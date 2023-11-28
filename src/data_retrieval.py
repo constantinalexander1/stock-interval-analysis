@@ -29,7 +29,7 @@ def store_data(symbol: str, csv_list: [[str]]):
     current_path_raw = os.path.dirname(__file__)
     current_path = Path(current_path_raw)
 
-    target_path = str(current_path.parent.parent) + "/datasets/raw/" + filename
+    target_path = str(current_path.parent) + "/sample_data/" + filename
 
 
     header = ["date", "open", "high", "low", "close", "volume"]
@@ -55,7 +55,7 @@ def query_alpha_vantage(search_string: str, symbol: str, full_output: bool) -> d
     if full_output:
         outputsize = "&outputsize=full"
 
-    url = "https://www.alphavantage.co/query?" + search_string + "&symbol=" + symbol + outputsize + "&apikey=" + api_key
+    url = "https://www.alphavantage.co/query?" + search_string + "&symbol=" + symbol + "&interval=1min" + outputsize + "&apikey=" + api_key
     r = requests.get(url)
     json_data = r.json()
 
@@ -64,10 +64,10 @@ def query_alpha_vantage(search_string: str, symbol: str, full_output: bool) -> d
     return json_data
    
 # returns pair: (symbol, [[date, open, high, low, close, volume]])
-def parse_daily_data(result_dictionary: dict) -> (str, [[str]]):
+def parse_1min_interval_data(result_dictionary: dict) -> (str, [[str]]):
     print(f"    Parsing API response", end="...")
     meta_data_dict = result_dictionary["Meta Data"]
-    time_series_dict = result_dictionary["Time Series (Daily)"]
+    time_series_dict = result_dictionary["Time Series (1min)"]
 
     time_series_list = list(time_series_dict.items())
 
@@ -90,31 +90,17 @@ def parse_daily_data(result_dictionary: dict) -> (str, [[str]]):
     return (meta_data_dict["2. Symbol"], csv_list)
 
 
-def get_xetra_dax():
-
-    current_path_raw = os.path.dirname(__file__)
-    current_path = Path(current_path_raw)
-
-    target_path = str(current_path) + "/exchange_templates/dax_xetra_symbols.json"
-
-
-    with open(target_path, 'r', encoding='UTF8') as file:
-        xetra_dax_json = json.load(file)
-        xetra_dax_list = list(xetra_dax_json.items())
-
-        for item in xetra_dax_list:
-            symbol = item[1]
-
-            json_dict = query_alpha_vantage("function=TIME_SERIES_DAILY", symbol, True)
-            _, csv_list = parse_daily_data(json_dict)
-            store_data(symbol, csv_list)
-            time.sleep(15)
+def get_stock_intraday(ticker_symbol):
+    search_string = "function=TIME_SERIES_INTRADAY"
+    json_dict = query_alpha_vantage(search_string, ticker_symbol, True)
+    _, csv_list = parse_1min_interval_data(json_dict)        
+    store_data(ticker_symbol, csv_list)
 
 
 
 def main():
-    print("\nRetrieving market data. Results will be stored in 'datasets' folder...")
-    get_xetra_dax()
+    print("\nRetrieving market data. Results will be stored in 'sample_data' folder...")
+    get_stock_intraday("IBM")
     
 
 
